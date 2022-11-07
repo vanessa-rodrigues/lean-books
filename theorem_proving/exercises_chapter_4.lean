@@ -30,8 +30,13 @@ example : α → ((∀ _ : α, r) ↔ r) :=
 
 example : (∀ x, p x ∨ r) ↔ (∀ x, p x) ∨ r := 
   Iff.intro
-  (fun h : (∀ x, p x ∨ r) => sorry)
-
+  (fun h : (∀ x, p x ∨ r) => (Or.elim (em r) 
+    (fun hr => Or.inr hr) 
+    (fun hnr => Or.inl (fun α => have h1 := (h α)
+      h1.elim 
+      (fun h2 => h2)
+      (fun hr => False.elim (absurd hr hnr)) 
+    ))))
   (fun h : (∀ x, p x) ∨ r => h.elim 
     (fun h1 => fun α => Or.inl (h1 α))
     (fun h1 => fun α => Or.inr h1))
@@ -47,30 +52,29 @@ variable (shaves : men → men → Prop)
 
 example (h : ∀ x : men, shaves barber x ↔ ¬ shaves x x) : False :=
   match (h barber) with
-    | ⟨l, r⟩ =>
-      let w := shaves barber barber
-      Or.elim (em w)
-        (fun a => absurd a (l a))
-        (fun b => absurd (r b) b)
+    | ⟨w, hw⟩ =>
+      let l := shaves barber barber
+      Or.elim (em l)
+        (fun h1 => absurd h1 (w h1))
+        (fun h1 => absurd (hw h1) h1)
 
 -- 4
 def even (n : Nat) : Prop := ∃ m, n = 2 * m
 
--- I would like knowing a way that allows me to check this is correct
+-- I would like knowing a way that allows me to check if this is correct
 def prime (n : Nat) : Prop := ¬∃ m, (Nat.mod n m = 0) ∧ ¬(m = 1) ∧ ¬(m = n) 
 
-def infinitely_many_primes : Prop := ∀ n, (prime n) → ∃ m, (prime m) ∧ (m > n) 
+def infinitely_many_primes : Prop := ∀ n, ∃ m, (prime n) ∧ (prime m) ∧ (m > n) 
 
-def Fermat_prime (n : Nat) : Prop := sorry
+def Fermat_prime (n : Nat) : Prop := ∃ m, m < 5 ∧ (Nat.pow 4 m) = n ∧ prime n
 
-def infinitely_many_Fermat_primes : Prop := sorry
+def infinitely_many_Fermat_primes : Prop := ∀ n, ∃ m, (Fermat_prime n) ∧ (Fermat_prime m) ∧ (m > n) 
 
-def goldbach_conjecture : Prop := sorry
+def goldbach_conjecture : Prop := ∀ n, ∃ m, ∃ s, n > 2 ∧ prime m ∧ prime s ∧ n = (m + s)
 
-def Goldbach's_weak_conjecture : Prop := sorry
+def Goldbach's_weak_conjecture : Prop := ∀ n: Nat, ∃ x, ∃ y, ∃ z, n > 5 ∧ (Nat.mod n 2) = 1 ∧ n = x + y + z ∧ prime x ∧ prime y ∧ prime z
 
-def Fermat's_last_theorem : Prop := sorry
-
+def Fermat's_last_theorem : Prop := ∀ n : Nat, ¬∃ x, ¬∃ y, ¬∃ z,  n > 2 ∧ (Nat.pow x n) + (Nat.pow y n) = (Nat.pow z n)
 
 -- 5
 variable (r : Prop)
@@ -107,7 +111,7 @@ example : (∀ x, p x) ↔ ¬ (∃ x, ¬ p x) :=
   Iff.intro
   (fun h => fun h1 => match h1 with
     | ⟨w,hw⟩ => absurd (h w) hw)
-  (fun h => sorry)
+  (fun h => fun α => byContradiction (fun h1 => absurd (Exists.intro α h1) h))
 
 example : (∃ x, p x) ↔ ¬ (∀ x, ¬ p x) := 
   Iff.intro
@@ -115,25 +119,54 @@ example : (∃ x, p x) ↔ ¬ (∀ x, ¬ p x) :=
     | ⟨w, hw⟩ => fun h1 => 
       have hp := h1 w
       absurd hw hp)
-  (fun h => sorry)
+  (fun h => byContradiction (fun h1 => absurd 
+    (fun α => byCases 
+      (fun h2 : p α => False.elim (absurd ⟨α,h2⟩ h1))
+      (fun h2 => h2)) h))
 
--- example : (¬ ∃ x, p x) ↔ (∀ x, ¬ p x) := sorry
+example : (¬ ∃ x, p x) ↔ (∀ x, ¬ p x) := 
+  Iff.intro
+  (fun h => fun α => fun hpa => absurd (Exists.intro α hpa) h)
+  (fun h => fun h1 => match h1 with 
+    | ⟨w, hw⟩ => absurd hw (h w))
 
--- example : (¬ ∀ x, p x) ↔ (∃ x, ¬ p x) := sorry
+example : (¬ ∀ x, p x) ↔ (∃ x, ¬ p x) := 
+  Iff.intro 
+  (fun h => byContradiction 
+  (fun h1 => absurd 
+      (fun α => byCases 
+      (fun hpa : p α => hpa)
+      (fun hnp => False.elim (absurd (Exists.intro α hnp) h1))) h)) 
+  (fun h => match h with 
+    | ⟨w, hw⟩ => fun h1 => absurd (h1 w) hw)
 
 example : (∀ x, p x → r) ↔ (∃ x, p x) → r := 
   Iff.intro
   (fun h => fun h1 => match h1 with
   | ⟨w,hw⟩ => (h w) hw)
-  (fun h => sorry)
+  (fun h => fun α => fun h1 => h (Exists.intro α h1))
 
 example (a : α) : (∃ x, p x → r) ↔ (∀ x, p x) → r := 
   Iff.intro
-  (fun h => fun h1 => sorry)
-  (fun h =>  sorry)
+  (fun ⟨b, (hb : p b → r)⟩ => fun h1 => hb (h1 b)) -- removed the exists already ?
+  (fun h => byCases
+    (fun hap : ∀ x, p x => Exists.intro a (fun _ => h hap))
+    (fun hnap : ¬ ∀ x, p x =>
+    byContradiction
+      (fun hnex : ¬ ∃ x, p x → r =>
+        have hap : ∀ x, p x :=
+          fun x =>
+          byContradiction
+            (fun hnp : ¬ p x =>
+              have hex : ∃ x, p x → r := ⟨x, (fun hp => absurd hp hnp)⟩
+              show False from hnex hex)
+        show False from hnap hap)))
 
 example (a : α) : (∃ x, r → p x) ↔ (r → ∃ x, p x) := 
   Iff.intro
   (fun h => match h with
     | ⟨w,hw⟩ => fun hr => Exists.intro w (hw hr))
-  (fun h => Exists.intro a (fun hr => sorry))
+  (fun h => Or.elim (em r) 
+  (fun hr => sorry)
+  (fun hnr => Exists.intro a (fun hr => False.elim (hnr hr))))
+
