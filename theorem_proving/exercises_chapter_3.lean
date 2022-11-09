@@ -163,10 +163,10 @@ example (h : ¬(p ∧ q)) : ¬p ∨ ¬q :=
     (fun hnp => Or.inl hnp)
 
 example : ¬(p → q) → p ∧ ¬q := fun h => Or.elim (em p)
-  (fun hp => And.intro hp (fun hq => absurd (fun hp => hq) h))
+  (fun hp => And.intro hp (fun hq => absurd (fun _ => hq) h))
   (fun hnp => And.intro 
     (False.elim (h (fun hp => False.elim (absurd hp hnp)))) 
-    (fun hq => absurd (fun hp => hq) h))
+    (fun hq => absurd (fun _ => hq) h))
 
 example (h : p → q) : ¬p ∨ q := Or.elim (em p) 
   (fun hp => Or.inr (h hp))

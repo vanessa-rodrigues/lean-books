@@ -167,5 +167,6 @@ example (a : α) : (∃ x, r → p x) ↔ (r → ∃ x, p x) :=
   (fun h => match h with
     | ⟨w,hw⟩ => fun hr => Exists.intro w (hw hr))
 (fun h => Or.elim (em r) 
-  (fun hr => sorry)
+  (fun hr => match (h hr) with 
+    | ⟨x,px⟩ => Exists.intro x (fun _ => px))
   (fun hnr => Exists.intro a (fun hr => False.elim (hnr hr))))
