@@ -258,7 +258,14 @@ example : p ∨ ¬p := by
 
 example : ((p → q) → p) → p := by 
   intro h 
-  admit
+  apply Or.elim 
+  apply em p 
+  . intro hp 
+    exact hp 
+  . intro hnp 
+    apply absurd 
+    exact h (fun hp => byContradiction (fun _ => hnp hp))
+    exact hnp 
 
 -- Chapter 4
 
@@ -386,9 +393,11 @@ example : (∃ x, p x) ↔ ¬ (∀ x, ¬ p x) := by
   . intro h
     apply byContradiction
     . intro h1
-      apply absurd
-      exact h 
-      admit    
+      apply absurd 
+      exact (fun α => byCases 
+      (fun h2 : p α => False.elim (absurd ⟨α,h2⟩ h1))
+      (fun h2 => h2)) 
+      exact h  
 
 example : (¬ ∃ x, p x) ↔ (∀ x, ¬ p x) := by 
   apply Iff.intro 
@@ -402,8 +411,10 @@ example : (¬ ∀ x, p x) ↔ (∃ x, ¬ p x) := by
   apply Iff.intro 
   . intro h 
     apply byContradiction 
-    admit
-
+    exact (fun h1 => absurd 
+      (fun α => byCases 
+      (fun hpa : p α => hpa)
+      (fun hnp => False.elim (absurd (Exists.intro α hnp) h1))) h)
   . intro h h1
     cases h with 
     | intro x px => apply absurd (h1 x) px

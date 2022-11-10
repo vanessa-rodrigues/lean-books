@@ -179,3 +179,7 @@ example (h : ¬q → ¬p) : (p → q) := fun hp => Or.elim (em q)
 example : p ∨ ¬p := em p
 
 example (_ : p → q) (hp: p) : p := byContradiction (fun hnp => hnp hp)
+
+example : ((p → q) → p) → p := fun h => Or.elim (em p)
+    (fun hp => hp)
+    (fun hnp => absurd (h (fun hp => byContradiction (fun _ => hnp hp))) hnp)
