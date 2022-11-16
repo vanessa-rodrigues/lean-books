@@ -14,7 +14,6 @@ example : p ∨ q ↔ q ∨ p :=
           show q ∨ p from Or.intro_right q hp)
         (fun hq : q =>
           show q ∨ p from Or.intro_left p hq))
-
     (fun h : q ∨ p => show p ∨ q from 
       Or.elim h
         (fun hq : q =>

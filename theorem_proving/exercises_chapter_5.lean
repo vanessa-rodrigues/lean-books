@@ -268,7 +268,6 @@ example : ((p → q) → p) → p := by
     exact hnp 
 
 -- Chapter 4
-
 variable (α : Type) (p q : α → Prop)
 variable (r : Prop)
 

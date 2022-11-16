@@ -32,14 +32,14 @@ example : (∀ x, p x ∨ r) ↔ (∀ x, p x) ∨ r :=
   Iff.intro
   (fun h : (∀ x, p x ∨ r) => (Or.elim (em r) 
     (fun hr => Or.inr hr) 
-    (fun hnr => Or.inl (fun α => have h1 := (h α)
+    (fun hnr => Or.inl (fun α => 
+      have h1 := (h α)
       h1.elim 
-      (fun h2 => h2)
-      (fun hr => False.elim (absurd hr hnr)) 
-    ))))
+        (fun h2 => h2)
+        (fun hr => False.elim (absurd hr hnr))))))
   (fun h : (∀ x, p x) ∨ r => h.elim 
     (fun h1 => fun α => Or.inl (h1 α))
-    (fun h1 => fun α => Or.inr h1))
+    (fun h1 => fun _ => Or.inr h1))
 
 example : (∀ x, r → p x) ↔ (r → ∀ x, p x) := 
   Iff.intro
