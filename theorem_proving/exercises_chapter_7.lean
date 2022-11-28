@@ -286,22 +286,24 @@ theorem reverse_theorem (t : List α) : reverse (reverse t) = t := sorry
 end List
 end Hidden
 
-
 -- 3 
 namespace Hidden
 
-inductive Weekday where
-  | sunday
+inductive Expr where
+  | const : Nat -> Expr 
+  | var : Nat -> Expr 
+  | plus : Expr -> Expr -> Expr 
+  | times : Expr -> Expr -> Expr 
 deriving Repr
 
+def eval (e : Expr) : Nat := 
+  match e with
+  | Expr.const x => x
+  | Expr.var x => x
+  | Expr.plus e1 e2 => (eval e1) + (eval e2)
+  | Expr.times e1 e2 => (eval e1) * (eval e2)
 
-inductive ExerciseThree : α -> Type u where 
-  | const : (n : Nat) -> ExerciseThree n 
-  -- | var : α -> ExerciseThree α 
-deriving Repr
-
-
-#eval ExerciseThree.const 3
+#eval eval (Expr.plus (Expr.const 5) (Expr.var 3))
 
 end Hidden
 

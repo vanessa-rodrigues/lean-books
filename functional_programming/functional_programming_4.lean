@@ -44,27 +44,24 @@ def pos : Pos := 2
 --   | succ : Even -> Even
 
 inductive Even : Nat -> Type where
-  | zero : Even Nat.zero 
-  | succ : (Even n) -> Even (Nat.succ (Nat.succ n))
-deriving Repr
+  | zero : Even 0 
+  | succ : Even n -> Even (Nat.succ (Nat.succ n))
 
-#eval (Even.succ Even.zero)
+def ev := Even.succ (Even.succ Even.zero)
 
-def Even.toNat {α : Nat} : Even α → Nat
-  | Even.zero => 0
-  | Even.succ n => n.toNat + 2
+#check ev
 
-#eval Even.toNat (Even.succ (Even.succ Even.zero))
-
-def Even.add (n1 : Even α) (n2 : Even α) : Even α := 
-  match n1, n2 with
-  | Even.zero, k => k 
-  | Even.succ k1, Even.succ k2 => Even.succ (k1.add k2)
+def Even.add {α : Nat} (m n : Even α) : Even α := 
+  match n with
+  | Even.zero => m 
+  | Even.succ k1 => 
+    match m with 
+    | Even.succ k2 => Even.succ (k1.add k2) 
 
 instance {α : Nat} [Add Nat] : Add (Even α) where 
   add := Even.add 
 
--- #eval ((Even.succ Even.zero) + (Even.succ (Even.succ Even.zero)))
+-- #eval Even.add ev Even.zero
 
 
 -- -- def Even.mul : Even -> Even -> Even
@@ -116,4 +113,85 @@ structure HttpResponse where
 deriving Repr
 
 #eval HttpResponse.mk 345 "Test" none
+
+-- 4.3 
+structure PPoint (α : Type) where
+  x : α
+  y : α
+deriving Repr
+
+def PointMul [Mul α] (p1: PPoint α) (p2: PPoint α) : (PPoint α) := 
+  PPoint.mk (p1.x * p2.x) (p1.y * p2.y)
+
+instance [Mul α] : Mul (PPoint α) where 
+  mul := PointMul
+
+def HPointMul [Mul α] (p: PPoint α) (h: α) : (PPoint α) := 
+    PPoint.mk (p.x * h) (p.y * h)
+
+instance [Mul α] : HMul (PPoint α) α (PPoint α) where 
+  hMul := HPointMul
+
+#eval {x := 2.5, y := 3.7 : PPoint Float} * (2.0 : Float)
+
+-- 4.5 
+--1
+structure NonEmptyList (α : Type) : Type where
+  head : α
+  tail : List α
+deriving Repr
+
+instance : Append (NonEmptyList α) where
+  append xs ys :=
+    { head := xs.head, tail := xs.tail ++ ys.head :: ys.tail }
+
+def LocalAppend (xs: List α) (ys: NonEmptyList α) : (NonEmptyList α) := 
+  match xs with
+  | [] => ys
+  | x :: xss => { head := x, tail := xss ++ (List.cons ys.head ys.tail) }
+
+instance : HAppend (List α) (NonEmptyList α) (NonEmptyList α) where 
+  hAppend := LocalAppend
+
+#eval [1,2,3] ++ ({ head := 4, tail := [6,7,8] } : NonEmptyList Nat)
+
+#eval [1,2,3] ++ ({ head := 4, tail := [] } : NonEmptyList Nat)
+
+#eval ([] : List Nat) ++ ({ head := 4, tail := [6,7,8] } : NonEmptyList Nat)
+
+--2
+inductive BinTree (α : Type) where
+  | leaf (val : α) : BinTree α
+  | branch : BinTree α → α → BinTree α → BinTree α
+deriving Repr
+
+def eqBinTree [BEq α] : BinTree α → BinTree α → Bool
+  | BinTree.leaf _, BinTree.leaf _ =>
+    true
+  | BinTree.branch l x r, BinTree.branch l2 x2 r2 =>
+    x == x2 && eqBinTree l l2 && eqBinTree r r2
+  | _, _ =>
+    false
+
+instance [BEq α] : BEq (BinTree α) where
+  beq := eqBinTree
+
+def hashBinTree [Hashable α] : BinTree α → UInt64
+  | BinTree.leaf _ =>
+    0
+  | BinTree.branch left x right =>
+    mixHash 1 (mixHash (hashBinTree left) (mixHash (hash x) (hashBinTree right)))
+
+instance [Hashable α] : Hashable (BinTree α) where
+  hash := hashBinTree
+
+def mapBinTree (f : α -> β) (tree: BinTree α) : BinTree β := 
+  match tree with
+  | BinTree.leaf x => BinTree.leaf (f x)
+  | BinTree.branch l x r => BinTree.branch (mapBinTree f l) (f x) (mapBinTree f r)
+
+instance : Functor BinTree where 
+  map f tree := mapBinTree f tree 
+
+#eval mapBinTree (fun x => x * 2) (BinTree.branch (BinTree.leaf 4) 5 (BinTree.leaf 8))
 
