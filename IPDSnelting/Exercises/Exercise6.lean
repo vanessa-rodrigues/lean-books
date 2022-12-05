@@ -16,7 +16,7 @@ inductive RTC : α → α → Prop where
 theorem RTC.trans' : RTC r a b → r b c → RTC r a c := by
   intros hab hbc
   induction hab with
-  | refl => _
+  | refl => exact RTC.trans hbc RTC.refl
   -- `a/b/c` in the constructor `RTC.trans` are marked as *implicit* because we didn't specify them
   -- explicitly.
   -- Just like in other contexts, we can use `@` to specify/match implicit parameters in `induction`.
@@ -97,7 +97,10 @@ def empty : Map α β := fun k => none
 
 /-- Set the entry `k` of the map `m` to the value `v`. All other entries are unchanged. -/
 def update [DecidableEq α] (m : Map α β) (k : α) (v : Option β) : Map α β := 
-  fun x => if x = k then v else m x
+  fun x => if k = x then v else m x
+
+-- def update [DecidableEq α] (m : Map α β) (k : α) (v : Option β) : Map α β := 
+--   fun k' => if k = k' then v else m k'
 
 -- A `scoped` notation is activated only when opening/inside the current namespace
 scoped notation:max m "[" k " ↦ " v "]" => update m k v
@@ -106,9 +109,9 @@ theorem apply_update [DecidableEq α] (m : Map α β) : m[k ↦ v] k = v := by s
 
 -- hint: use function extensionality (`apply funext`)
 theorem update_self [DecidableEq α] (m : Map α β) : m[k ↦ m k] = m := by
-  apply funext -- se variaveis iguais, funcoes iguais ?
-  intro k'
-  by_cases h : k = k' <;> simp [h, update]
+-- funext {f₁ f₂ : ∀ (x : α), β x} (h : ∀ x, f₁ x = f₂ x) : f₁ = f₂
+  funext k'  -- an abbreviation for `apply funext; intro k'`
+  by_cases h : k = k' <;> simp [update, h]
 
 end Map
 
@@ -124,15 +127,24 @@ def empty : DepMap α β := fun k => none
 -- You may want to use the "dependent if" `if h : p then t else e` that makes a *proof* of
 -- the condition `p` available in each branch: `h : p` in the `then` branch and `h : ¬p` in the
 -- `else` branch. You should then be able to use rewriting (e.g. `▸`) to fix the type error.
-def update [DecidableEq α] (m : DepMap α β) (k : α) (v : Option (β k)) : DepMap α β := _
+def update [DecidableEq α] (m : DepMap α β) (k : α) (v : Option (β k)) : DepMap α β :=
+  fun x => if h : k = x then h ▸ v else m x
+    -- fun x => if k = x then v else m x
 
 scoped notation:max m "[" k " ↦ " v "]" => update m k v
 
 -- This one should be as before...
-theorem apply_update [DecidableEq α] (m : DepMap α β) : m[k ↦ v] k = v := by
+theorem apply_update [DecidableEq α] (m : DepMap α β) : m[k ↦ v] k = v := by simp [update]
 
 -- ...but this one is where the fun starts: try replicating the corresponding `Map` proof...
 theorem update_self [DecidableEq α] (m : DepMap α β) : m[k ↦ m k] = m := by
+  funext k'  -- an abbreviation for `apply funext; intro k'`
+  by_cases h : k = k' 
+  case inl => 
+    rw [h]
+    simp [update]
+  case inr => 
+    simp [h, update]
 -- and you should end up with an unsolved goal containing a subterm of the shape `(_ : a = b) ▸ c`. This
 -- is the rewrite from `update`; the proof is elided as `_` by default because, as we said in week 1, Lean
 -- considers all proofs of a proposition as equal, so we really don't care what proof is displayed there.
@@ -173,18 +185,45 @@ variable [LE α] [DecidableRel ((· ≤ ·) : α → α → Prop)]
 -- The empty list `[]` and the single element list `[a]` are sorted,
 -- and we can add `a` to the front of a sorted list `b :: l`, if `a ≤ b`.
 inductive Sorted : List α → Prop where 
+  | nil : Sorted []
+  | single : Sorted [a]
+  | cons_cons : a ≤ b → Sorted (b::l) → Sorted (a::b::l) 
 
 -- The main ingredient to insertion sort is a function `insertInOrder` which inserts
 -- a single element `a` before the first entry `x` of a list for which `a ≤ x` holds.
 -- Define that function by recursion on the list. Remember that `≤` is decidable.
-def insertInOrder (a : α) (xs : List α) : List α := _
+-- def insertInOrder (a : α) (xs : List α) : List α := 
+--   let rec helper (a : α) (xs : List α) (ys : List α) : List α := 
+--     match xs with  
+--     | [] => ys ++ [a]
+--     | x :: xs => if a ≤ x then ys ++ (a::x::xs) else helper a xs (ys ++ [x])
+--   helper a xs []
+
+def insertInOrder (a : α) (xs : List α) : List α := 
+  match xs with
+  | [] => [a]
+  | x :: xs =>
+    if a ≤ x then
+      a :: x :: xs
+    else
+      x :: insertInOrder a xs
 
 -- Now, check whether the function actually does what it should do.
 #eval insertInOrder 4 [1, 3, 4, 6, 7]
 #eval insertInOrder 4 [1, 2, 3]
 
 -- Defining `insertionSort` itself is now an easy recursion.
-def insertionSort (xs : List α) : List α := _
+-- def insertionSort (xs : List α) : List α := 
+--   let rec helper (xs : List α) (ys : List α) : List α := 
+--     match xs with 
+--     | [] => ys
+--     | x :: xs => helper xs (insertInOrder x ys)
+--   helper xs []
+
+def insertionSort (xs : List α) : List α := 
+  match xs with
+  | []      => []
+  | x :: xs => insertInOrder x (insertionSort xs)
 
 -- Let's test the sorting algorithm next.
 #eval insertionSort [6, 2, 4, 4, 1, 3, 64]
@@ -200,8 +239,29 @@ variable (antisymm : ∀ {x y : α}, ¬ (x ≤ y) → y ≤ x)
 --   * You might at one point have the choice to either apply induction on a list or on a witness of `Sorted`.
 --     Choose wisely.
 --   * Remember the tactic `by_cases` from the fifth exercise!
+theorem sorted_insertInOrder {xs : List α} (h : Sorted xs) : Sorted (insertInOrder x xs) := by
+  induction h with
+  | nil => exact Sorted.single
+  | @single a => 
+    simp only [insertInOrder]
+    by_cases hxa : x ≤ a <;> simp only [hxa]
+    case inl => exact Sorted.cons_cons hxa Sorted.single
+    case inr => exact Sorted.cons_cons (antisymm hxa) Sorted.single
+  | @cons_cons a b l hab hbl ih => 
+    simp only [insertInOrder]
+    by_cases hxa : x ≤ a <;> simp only [hxa]
+    case inl => exact Sorted.cons_cons hxa (Sorted.cons_cons hab hbl)
+    case inr => 
+      by_cases hxb : x ≤ b <;> simp only [hxb]
+      case inl => exact Sorted.cons_cons (antisymm hxa) (Sorted.cons_cons hxb hbl)
+      case inr =>
+        simp only [insertInOrder, hxb] at ih
+        exact Sorted.cons_cons hab ih
 
-theorem sorted_insertionSort (as : List α) : Sorted (insertionSort as) := _
+theorem sorted_insertionSort (as : List α) : Sorted (insertionSort as) := 
+  match as with 
+  | nil => Sorted.nil
+  | x :: xs => sorted_insertInOrder antisymm (sorted_insertionSort xs)
 
 -- Here's a "soft" question: Have we now fully verified that `insertionSort` is a sorting algorithm?
 -- What other property would be an obvious one to verify (which you don't have to do here)?

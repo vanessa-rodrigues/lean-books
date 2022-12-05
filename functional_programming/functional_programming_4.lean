@@ -38,35 +38,41 @@ def pos : Pos := 2
 
 #eval pos
 
---Even Numbers
+-- Even Numbers
 -- inductive Even : Type where
 --   | zero : Even 
 --   | succ : Even -> Even
 
-inductive Even : Nat -> Type where
+inductive Even : Nat → Type where
   | zero : Even 0 
-  | succ : Even n -> Even (Nat.succ (Nat.succ n))
+  | succ : ∀ (_ : Even n), Even (Nat.succ (Nat.succ n))
 
 def ev := Even.succ (Even.succ Even.zero)
 
 #check ev
 
-def Even.add {α : Nat} (m n : Even α) : Even α := 
-  match n with
-  | Even.zero => m 
-  | Even.succ k1 => 
-    match m with 
-    | Even.succ k2 => Even.succ (k1.add k2) 
+def evenZeroAux (ev : Even m) : m = n + 2 → Even n := 
+  Even.casesOn (motive := fun x _ => x = n + 2 → Even n) ev 
+  (fun h : 0 = n + 2 => Nat.noConfusion h)
+  (fun h h1 => Nat.noConfusion h1 
+    (fun h2 => Nat.noConfusion h2 (fun h3 => by 
+      rw [h3, Nat.add] at h
+      exact h)))
+
+
+def Even.add {α : Nat} [Add Nat] : Even α -> Even α -> Even α 
+  | zero, k => k
+  | Even.succ n1, k => succ (n1.add (evenZeroAux k rfl)) 
 
 instance {α : Nat} [Add Nat] : Add (Even α) where 
-  add := Even.add 
+  add x := Even.add x
 
--- #eval Even.add ev Even.zero
+-- #eval ev + Even.zero
 
 
--- -- def Even.mul : Even -> Even -> Even
--- --   | Even.zero, _ => Even.zero
--- --   | Even.succ n, k => (Even.mul n k) + k
+def Even.mul [Mul Nat] : Even n -> Even n -> Even n 
+  | Even.zero, _ => Even.zero
+  | Even.succ n1, Even.succ n2 => Even.succ (Even.mul n1 n2) 
 
 -- def Even.mul : Even α -> Even α -> Even α
 --   | Even.zero, _ => Even.zero
@@ -194,4 +200,3 @@ instance : Functor BinTree where
   map f tree := mapBinTree f tree 
 
 #eval mapBinTree (fun x => x * 2) (BinTree.branch (BinTree.leaf 4) 5 (BinTree.leaf 8))
-
